@@ -12,6 +12,50 @@ This project provides a complete replacement for Arlo's commercial base station 
 - Web-based video viewer
 - Extended WiFi range compared to commercial base stations
 
+## Repository vs. Live Deployment
+
+**IMPORTANT**: This repository is for VERSION CONTROL only. It contains sanitized code and configuration templates. The actual running services read from a separate LIVE DEPLOYMENT.
+
+### What's in the Repository (Version Control)
+```
+~/arlo-open-base-station/           # This repo
+├── src/arlo-cam-api/               # Source code (sanitized)
+├── src/arlo-viewer/                # Source code (sanitized)
+├── config/*.example                # Config TEMPLATES (no secrets)
+└── docs/                           # Documentation
+```
+
+### What's in the Live Deployment (Runtime)
+```
+/opt/arlo-cam-api/                  # RUNNING Python backend (arlo.service)
+├── config.yaml                     # LIVE config with real secrets
+├── arlo.db                         # LIVE database
+└── venv/                           # Python virtualenv
+
+~/arlo-viewer/                      # RUNNING Node.js frontend (arlo-viewer.service)
+
+~/arlo-recordings/                  # LIVE video storage (NOT in repo)
+```
+
+### What is NOT in the Repository
+- `config.yaml` with real camera serials, ntfy topics, passwords
+- `arlo.db` database
+- `arlo-recordings/` video files
+- `node_modules/`
+- Python `venv/`
+
+### Development Workflow
+1. Make changes in the LIVE DEPLOYMENT (`/opt/arlo-cam-api/` or `~/arlo-viewer/`)
+2. Test by restarting services
+3. Once working, copy changes to the repo (`~/arlo-open-base-station/`)
+4. Commit and push to GitHub
+
+### Fresh Install (New Machine)
+1. Clone the repo
+2. Run `scripts/install.sh` - creates live deployment from repo templates
+3. Edit live config with real values
+4. Services run from live deployment, not repo
+
 ## Directory Structure
 
 ```
@@ -127,21 +171,6 @@ CameraAliases:
   SERIAL1: "Front Door"
   SERIAL2: "Back Yard"
 ```
-
-## Development Workflow
-
-### Source of Truth
-The active running code is at `/opt/arlo-cam-api/`. Always test changes there before committing to this repo.
-
-### Making Changes
-1. Edit code in `/opt/arlo-cam-api/` or `/home/randy/arlo-viewer/`
-2. Restart the relevant service:
-   ```bash
-   sudo systemctl restart arlo.service
-   sudo systemctl restart arlo-viewer.service
-   ```
-3. Test the changes
-4. Copy working code back to this repo
 
 ### Logs
 ```bash

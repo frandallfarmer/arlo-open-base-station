@@ -30,6 +30,8 @@ This project is a complete replacement for:
 ### Compute
 - Linux machine (Ubuntu 20.04+ recommended)
 - Raspberry Pi 4, old laptop, or mini PC all work fine
+- **RAM**: 1GB minimum, 2GB+ recommended
+- **Storage**: 20GB+ for recordings (depends on retention policy)
 
 ### WiFi Access Point (CRITICAL)
 
@@ -56,6 +58,41 @@ See [WIFI-HARDWARE.md](WIFI-HARDWARE.md) for the full technical investigation.
 ### Cameras
 - Arlo cameras (VMC4030 tested)
 - Custom firmware capability required
+
+## External Infrastructure (Optional)
+
+For remote access to recordings and push notifications from outside your home network, you'll need:
+
+### Domain Name
+- A domain pointing to your public server (e.g., `security.yourdomain.com`)
+- Used for accessing the web viewer and receiving notifications remotely
+
+### Public Server (VPS)
+- A small VPS or cloud instance (512MB RAM is sufficient)
+- Runs [bore](https://github.com/ekzhang/bore) server to tunnel traffic
+- Runs reverse proxy (Caddy/nginx) for SSL termination
+
+### SSL Certificates
+- Required for HTTPS access and ntfy push notifications
+- Caddy provides automatic Let's Encrypt certificates
+- Or use your own certificate provider
+
+### Example Setup (Farmernet)
+```
+┌─────────────────┐         ┌─────────────────┐
+│   arlo-base     │  bore   │   VPS/Droplet   │
+│   (home LAN)    │ ──────> │ (public IP)     │
+├─────────────────┤         ├─────────────────┤
+│ :3003 viewer    │ ──────> │ :8084 ──> Caddy │──> security.domain.com
+│ :8085 ntfy      │ ──────> │ :8085 ──> Caddy │──> ntfy.domain.com
+└─────────────────┘         └─────────────────┘
+```
+
+### Local-Only Operation
+If you only need access from your home network:
+- Skip bore tunnel setup
+- Access viewer directly at `http://arlo-base:3003`
+- Use public `ntfy.sh` for notifications (no self-hosting needed)
 
 ## Quick Start
 

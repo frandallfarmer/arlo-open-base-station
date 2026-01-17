@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arlo Camera Status</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 28px;
+        }
+
+        .refresh-info {
+            color: #666;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .cameras-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .camera-card {
+            background: white;
+            border-radius: 10px;
+            padding: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .camera-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .camera-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .camera-name {
+            font-size: 22px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-online {
+            background: #10b981;
+            color: white;
+        }
+
+        .status-offline {
+            background: #ef4444;
+            color: white;
+        }
+
+        .live-button {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            background: #dc2626;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .live-button:hover {
+            background: #b91c1c;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+        }
+
+        .live-button:active {
+            transform: translateY(0);
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .stat-value {
+            color: #111827;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .battery-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .battery-bar {
+            flex: 1;
+            height: 20px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .battery-fill {
+            height: 100%;
+            transition: width 0.3s, background-color 0.3s;
+            border-radius: 4px;
+        }
+
+        .battery-high {
+            background: linear-gradient(90deg, #10b981, #059669);
+        }
+
+        .battery-medium {
+            background: linear-gradient(90deg, #f59e0b, #d97706);
+        }
+
+        .battery-low {
+            background: linear-gradient(90deg, #ef4444, #dc2626);
+        }
+
+        .battery-text {
+            font-weight: 600;
+            min-width: 45px;
+            text-align: right;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 18px;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .signal-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .signal-bar {
+            width: 4px;
+            background: #d1d5db;
+            border-radius: 2px;
+        }
+
+        .signal-bar.active {
+            background: #10b981;
+        }
+
+        .charging-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .charging-yes {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .charging-no {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .charging-icon {
+            font-size: 16px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .cmd-button {
+            padding: 6px 16px;
+            border: 2px solid;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .cmd-button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .arm-button {
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-color: #059669;
+            color: white;
+        }
+
+        .arm-button:hover:not(:disabled) {
+            background: linear-gradient(135deg, #059669, #047857);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(5, 150, 105, 0.3);
+        }
+
+        .arm-button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .disarm-button {
+            background: #1e293b;
+            border-color: #475569;
+            color: #e2e8f0;
+        }
+
+        .disarm-button:hover:not(:disabled) {
+            background: #334155;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(30, 41, 59, 0.3);
+        }
+
+        .disarm-button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .button-active {
+            opacity: 0.6;
+            font-weight: 700;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        .stale-data {
+            opacity: 0.4;
+            font-style: italic;
+        }
+
+        .stale-data::after {
+            content: " (stale)";
+            font-size: 11px;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1 style="margin: 0;">Arlo Camera Status Dashboard</h1>
+                <a href="/" style="background: #2196F3; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: 600;">Recordings</a>
+            </div>
+            <div class="refresh-info">Auto-refreshes every 30 seconds • <span id="last-update"></span></div>
+        </header>
+
+        <div id="loading" class="loading">Loading camera status...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="cameras" class="cameras-grid"></div>
+    </div>
+
+    <script>
+        function getBatteryClass(percent) {
+            if (percent >= 50) return 'battery-high';
+            if (percent >= 25) return 'battery-medium';
+            return 'battery-low';
+        }
+
+        function formatSignalStrength(strength) {
+            if (!strength) return '—';
+            // SignalStrengthIndicator is typically 0-5
+            const bars = Math.min(Math.max(strength, 0), 5);
+            let html = '<div class="signal-indicator">';
+            for (let i = 1; i <= 5; i++) {
+                const height = 6 + (i * 3);
+                const active = i <= bars ? 'active' : '';
+                html += `<div class="signal-bar ${active}" style="height: ${height}px"></div>`;
+            }
+            html += '</div>';
+            return html;
+        }
+
+        // Track armed state for each camera
+        const cameraStates = {};
+
+
+        function formatSleepTime(lastSeenIso) {
+            if (!lastSeenIso) return '';
+            const lastSeen = new Date(lastSeenIso);
+            const now = new Date();
+            const diffMs = now - lastSeen;
+            const diffMinutes = Math.floor(diffMs / 60000);
+
+            if (diffMinutes < 60) {
+                return `(sleep ${diffMinutes}m)`;
+            } else if (diffMinutes < 1440) { // Less than 24 hours
+                const hours = Math.floor(diffMinutes / 60);
+                return `(sleep ${hours}h)`;
+            } else {
+                const days = Math.floor(diffMinutes / 1440);
+                return `(sleep ${days}d)`;
+            }
+        }
+
+        function armCamera(serial) {
+            sendMotionCommand(serial, 'arm');
+        }
+
+        function disarmCamera(serial) {
+            sendMotionCommand(serial, 'disarm');
+        }
+
+        function openStreamWindow(serial, friendlyName) {
+            const url = `/stream.html?serial=${serial}&name=${encodeURIComponent(friendlyName)}`;
+            window.open(url, `stream-${serial}`, 'width=800,height=600');
+        }
+
+        function sendMotionCommand(serial, command) {
+            fetch(`/api/camera/${serial}/${command}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.result === false) {
+                    alert(`Failed to ${command} camera - command not accepted`);
+                } else {
+                    console.log(`Camera ${serial} ${command} command sent successfully`);
+                    // Update local state
+                    cameraStates[serial] = command === 'arm' ? 'armed' : 'disarmed';
+                    // Refresh UI to show new state
+                    updateButtonStates(serial);
+                }
+            })
+            .catch(err => {
+                console.error(`Failed to ${command} camera:`, err);
+                alert(`Failed to ${command} camera - network error`);
+            });
+        }
+
+        function updateButtonStates(serial) {
+            const state = cameraStates[serial];
+            console.log(`updateButtonStates: ${serial} state=${state}`);
+            const card = document.querySelector(`[data-serial="${serial}"]`);
+            if (!card) {
+                console.log(`  ERROR: Card not found for ${serial}`);
+                return;
+            }
+
+            const armBtn = card.querySelector('.cmd-button:first-child');
+            const disarmBtn = card.querySelector('.cmd-button:last-child');
+            console.log(`  armBtn text="${armBtn.textContent}" classes="${armBtn.className}"`);
+            console.log(`  disarmBtn text="${disarmBtn.textContent}" classes="${disarmBtn.className}"`);
+
+            if (state === 'armed') {
+                // Armed state: "Armed" button is green (active), "Disarm" is dark (action)
+                armBtn.textContent = 'Armed';
+                armBtn.classList.remove('disarm-button');
+                armBtn.classList.add('arm-button', 'button-active');
+                disarmBtn.textContent = 'Disarm';
+                disarmBtn.classList.remove('arm-button', 'button-active');
+                disarmBtn.classList.add('disarm-button');
+            } else if (state === 'disarmed') {
+                // Disarmed state: "Disarmed" button is green (active), "Arm" is dark (action)
+                armBtn.textContent = 'Arm';
+                armBtn.classList.remove('arm-button', 'button-active');
+                armBtn.classList.add('disarm-button');
+                disarmBtn.textContent = 'Disarmed';
+                disarmBtn.classList.remove('disarm-button');
+                disarmBtn.classList.add('arm-button', 'button-active');
+            } else {
+                // Unknown state: default labels and colors
+                armBtn.textContent = 'Arm';
+                armBtn.classList.remove('disarm-button', 'button-active');
+                armBtn.classList.add('arm-button');
+                disarmBtn.textContent = 'Disarm';
+                disarmBtn.classList.remove('arm-button', 'button-active');
+                disarmBtn.classList.add('disarm-button');
+            }
+        }
+
+        function updateCameraStatus() {
+            fetch('/api/cameras/status')
+                .then(response => response.json())
+                .then(cameras => {
+                    const container = document.getElementById('cameras');
+                    const loading = document.getElementById('loading');
+                    const error = document.getElementById('error');
+
+                    loading.style.display = 'none';
+                    error.style.display = 'none';
+
+                    if (cameras.length === 0) {
+                        container.innerHTML = '<div class="error">No cameras found</div>';
+                        return;
+                    }
+
+                    // Initialize camera states from API
+                    cameras.forEach(camera => {
+                        cameraStates[camera.serial_number] = camera.armed ? 'armed' : 'disarmed';
+                    });
+
+                    container.innerHTML = cameras.map(camera => `
+                        <div class="camera-card" data-serial="${camera.serial_number}">
+                            <div class="camera-header">
+                                <div class="camera-name">${camera.friendly_name}</div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 11px; color: #6b7280;">${formatSleepTime(camera.last_seen)}</span>
+                                    <div class="status-badge ${camera.online ? 'status-online' : 'status-offline'}">
+                                        ${camera.online ? 'Online' : 'Offline'}
+                                    </div>
+                                    ${camera.online ? `<button class="live-button" onclick="openStreamWindow('${camera.serial_number}', '${camera.friendly_name}')">Live</button>` : ''}
+                                </div>
+                            </div>
+
+                            <div class="stat-row">
+                                <span class="stat-label">Motion Detection</span>
+                                <div class="button-group ${!camera.online ? 'stale-data' : ''}">
+                                    <button class="cmd-button arm-button"
+                                            onclick="armCamera('${camera.serial_number}')"
+                                            ${!camera.online ? 'disabled' : ''}>
+                                        Arm
+                                    </button>
+                                    <button class="cmd-button disarm-button"
+                                            onclick="disarmCamera('${camera.serial_number}')"
+                                            ${!camera.online ? 'disabled' : ''}>
+                                        Disarm
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="stat-row">
+                                <span class="stat-label">Battery</span>
+                                <div class="battery-container ${!camera.online ? 'stale-data' : ''}">
+                                    ${camera.battery_percent !== null ? `
+                                        <div class="battery-bar">
+                                            <div class="battery-fill ${getBatteryClass(camera.battery_percent)}"
+                                                 style="width: ${camera.battery_percent}%"></div>
+                                        </div>
+                                        <span class="battery-text">${camera.battery_percent}%</span>
+                                    ` : '<span class="stat-value">—</span>'}
+                                </div>
+                            </div>
+
+                            <div class="stat-row">
+                                <span class="stat-label">Charging</span>
+                                <span class="stat-value ${!camera.online ? 'stale-data' : ''}">
+                                    ${camera.charging_state !== null && camera.charging_state !== 'Off' ? `
+                                        <span class="charging-indicator charging-yes">
+                                            <span class="charging-icon">⚡</span>
+                                            ${camera.charging_state}
+                                        </span>
+                                    ` : `
+                                        <span class="charging-indicator charging-no">
+                                            Not Charging
+                                        </span>
+                                    `}
+                                    ${camera.battery_voltage ? ` <span style="color: #9ca3af; font-size: 12px; margin-left: 8px;">(${camera.battery_voltage.toFixed(2)}V)</span>` : ''}
+                                </span>
+                            </div>
+
+                            <div class="stat-row">
+                                <span class="stat-label">Signal Strength</span>
+                                <span class="stat-value ${!camera.online ? 'stale-data' : ''}">${formatSignalStrength(camera.signal_strength)}</span>
+                            </div>
+
+                            <div class="stat-row">
+                                <span class="stat-label">IP Address</span>
+                                <span class="stat-value">${camera.ip || '—'}</span>
+                            </div>
+
+                            <div class="stat-row">
+                                <span class="stat-label">Hostname</span>
+                                <span class="stat-value">${camera.hostname || '—'}</span>
+                            </div>
+
+                            <div class="stat-row">
+                                <span class="stat-label">MAC Address</span>
+                                <span class="stat-value" style="font-size: 12px; font-family: monospace;">${camera.mac_address || '—'}</span>
+                            </div>
+
+                            <div class="stat-row">
+                                <span class="stat-label">Serial Number</span>
+                                <span class="stat-value" style="font-size: 12px; font-family: monospace;">${camera.serial_number}</span>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    // Update all button states after rendering
+                    cameras.forEach(camera => {
+                        updateButtonStates(camera.serial_number);
+                    });
+
+                    document.getElementById('last-update').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+                })
+                .catch(err => {
+                    console.error('Error fetching camera status:', err);
+                    document.getElementById('loading').style.display = 'none';
+                    const errorDiv = document.getElementById('error');
+                    errorDiv.textContent = 'Error loading camera status: ' + err.message;
+                    errorDiv.style.display = 'block';
+                });
+        }
+
+        // Initial load
+        updateCameraStatus();
+
+        // Auto-refresh every 30 seconds
+        setInterval(updateCameraStatus, 30000);
+    </script>
+</body>
+</html>

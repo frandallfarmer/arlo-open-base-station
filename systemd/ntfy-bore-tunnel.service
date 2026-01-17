@@ -1,0 +1,19 @@
+[Unit]
+Description=Ntfy Notification Bore Tunnel (ntfy → remote)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME
+ExecStart=/usr/local/bin/bore local 8085 --to YOUR_BORE_SERVER --port YOUR_BORE_NTFY_PORT
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/ntfy-bore-tunnel.log
+StandardError=append:/var/log/ntfy-bore-tunnel.log
+TimeoutStartSec=30
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

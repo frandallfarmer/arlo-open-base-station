@@ -1,0 +1,66 @@
+# Arlo Open Base Station - Installation Configuration
+# Copy this file and fill in your values before running scripts/install.sh
+
+# ===== USER CONFIGURATION =====
+# Your Linux username (for file paths and service ownership)
+USERNAME="your_username"
+
+# ===== NETWORK CONFIGURATION =====
+# WiFi interface for the access point (run 'ip link' to find yours)
+# Examples: wlp3s0, wlan0, wlx00c0cab955c4
+WIFI_INTERFACE="wlan0"
+
+# Ethernet interface (for SSH access and internet)
+# Examples: eth0, enp0s25, eno1
+ETH_INTERFACE="eth0"
+
+# ===== ACCESS POINT CONFIGURATION =====
+# WiFi network name that cameras will connect to
+WIFI_SSID="NETGEAR99"
+
+# WiFi password (WPA2)
+WIFI_PASSWORD="changeme"
+
+# WiFi country code (for regulatory compliance)
+WIFI_COUNTRY="US"
+
+# ===== RECORDING CONFIGURATION =====
+# Where to store video recordings
+RECORDINGS_PATH="/home/${USERNAME}/arlo-recordings"
+
+# How long to record after motion (seconds)
+MOTION_TIMEOUT="120"
+
+# ===== CAMERA CONFIGURATION =====
+# Camera serial numbers and friendly names
+# Add more CAMERA_SERIAL_X and CAMERA_NAME_X pairs as needed
+CAMERA_SERIAL_1=""
+CAMERA_NAME_1="Front Door"
+
+CAMERA_SERIAL_2=""
+CAMERA_NAME_2="Back Yard"
+
+# ===== NOTIFICATION CONFIGURATION (Optional) =====
+# Set NTFY_ENABLED="false" to disable push notifications
+NTFY_ENABLED="true"
+NTFY_URL="https://ntfy.sh"
+NTFY_TOPIC="your-arlo-alerts"
+NTFY_PRIORITY="high"
+
+# For thumbnail previews in notifications (requires public URL)
+NTFY_THUMBNAIL_URL=""
+NTFY_CLICK_URL=""
+
+# ===== REMOTE ACCESS CONFIGURATION (Optional) =====
+# For bore tunnel to expose viewer publicly
+# Leave empty to skip bore tunnel setup
+BORE_REMOTE_SERVER=""
+BORE_VIEWER_PORT="8084"
+BORE_NTFY_PORT="8085"
+
+# ===== INSTALLATION PATHS =====
+# Where to install arlo-cam-api (usually don't change)
+INSTALL_DIR="/opt/arlo-cam-api"
+
+# System user for running the service
+SERVICE_USER="arlo"

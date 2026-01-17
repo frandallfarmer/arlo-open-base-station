@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arlo Camera Recordings</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+
+        .stats {
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+
+        .recordings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .recording-card {
+            background: #2a2a2a;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+
+        .recording-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+        }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            aspect-ratio: 16/9;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .card-info {
+            padding: 15px;
+        }
+
+        .timestamp {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+
+        .metadata {
+            display: flex;
+            justify-content: space-between;
+            color: #888;
+            font-size: 0.85em;
+            margin-bottom: 12px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .play-btn {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .play-btn:hover {
+            background: #45a049;
+        }
+
+        .delete-btn {
+            background: #f44336;
+            color: white;
+        }
+
+        .delete-btn:hover {
+            background: #da190b;
+        }
+
+        .delete-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        .live-btn {
+            background: #e91e63;
+            color: white;
+        }
+
+        .live-btn:hover {
+            background: #c2185b;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888;
+        }
+
+        .empty h2 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #2196F3;
+            color: white;
+            font-size: 24px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+
+        .refresh-btn:hover {
+            background: #0b7dda;
+        }
+
+        .status-link:hover {
+            background: #0b7dda;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h1 style="margin-bottom: 0;">Arlo Camera Recordings</h1>
+            <a href="/status.html" class="status-link" style="background: #2196F3; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: 600; transition: background 0.2s;">Camera Status</a>
+        </div>
+        <div class="stats" id="stats">Loading...</div>
+        <div class="recordings-grid" id="recordingsGrid"></div>
+    </div>
+
+    <button class="refresh-btn" onclick="loadRecordings()" title="Refresh">↻</button>
+
+    <script>
+        let recordings = [];
+        let cameraStatus = {};  // Map of serial -> {online, friendly_name}
+
+        async function loadCameraStatus() {
+            try {
+                const response = await fetch('/api/cameras/status');
+                const cameras = await response.json();
+                cameraStatus = {};
+                cameras.forEach(cam => {
+                    cameraStatus[cam.serial_number] = {
+                        online: cam.online,
+                        friendly_name: cam.friendly_name
+                    };
+                });
+            } catch (error) {
+                console.error('Failed to load camera status:', error);
+            }
+        }
+
+        function getSerialFromFilename(filename) {
+            const match = filename.match(/arlo-([^-]+)-/);
+            return match ? match[1] : null;
+        }
+
+        function openStreamWindow(serial, friendlyName) {
+            const url = `/stream.html?serial=${serial}&name=${encodeURIComponent(friendlyName)}`;
+            window.open(url, `stream-${serial}`, 'width=800,height=600');
+        }
+
+        async function loadRecordings() {
+            const grid = document.getElementById('recordingsGrid');
+            const stats = document.getElementById('stats');
+
+            grid.innerHTML = '<div class="loading">Loading recordings...</div>';
+
+            try {
+                // Fetch camera status and recordings in parallel
+                await loadCameraStatus();
+                const response = await fetch('/api/recordings');
+                recordings = await response.json();
+
+                if (recordings.length === 0) {
+                    grid.innerHTML = '<div class="empty"><h2>No recordings yet</h2><p>Recordings will appear here when the camera detects motion</p></div>';
+                    stats.textContent = 'No recordings';
+                    return;
+                }
+
+                const totalSize = recordings.reduce((sum, r) => sum + r.size, 0);
+                const sizeGB = (totalSize / (1024 * 1024 * 1024)).toFixed(2);
+                stats.textContent = `${recordings.length} recordings • ${sizeGB} GB total`;
+
+                grid.innerHTML = recordings.map(recording => createRecordingCard(recording)).join('');
+            } catch (error) {
+                grid.innerHTML = '<div class="empty"><h2>Error loading recordings</h2><p>' + error.message + '</p></div>';
+            }
+        }
+
+        function createRecordingCard(recording) {
+            const sizeKB = (recording.size / 1024).toFixed(0);
+            const videoId = recording.filename.replace(/[^a-zA-Z0-9]/g, '_');
+            const serial = getSerialFromFilename(recording.filename);
+            const camInfo = serial ? cameraStatus[serial] : null;
+            const isOnline = camInfo && camInfo.online;
+            const friendlyName = camInfo ? camInfo.friendly_name : recording.camera;
+
+            const liveButton = isOnline
+                ? `<button class="live-btn" onclick="openStreamWindow('${serial}', '${friendlyName}')">📺 Live</button>`
+                : '';
+
+            return `
+                <div class="recording-card" id="card_${videoId}">
+                    <div class="video-container">
+                        <video id="video_${videoId}" controls preload="metadata">
+                            <source src="/api/video/${recording.filename}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                    <div class="card-info">
+                        <div class="timestamp">${recording.timestamp}</div>
+                        <div class="metadata">
+                            <span>Camera: ${recording.camera}</span>
+                            <span>${sizeKB} KB</span>
+                        </div>
+                        <div class="actions">
+                            <button class="play-btn" onclick="playVideo('${videoId}')">▶ Play</button>
+                            ${liveButton}
+                            <button class="delete-btn" onclick="deleteRecording('${recording.filename}', '${videoId}')">🗑 Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function playVideo(videoId) {
+            const video = document.getElementById('video_' + videoId);
+            if (video.paused) {
+                video.play();
+            } else {
+                video.pause();
+            }
+        }
+
+        async function deleteRecording(filename, videoId) {
+            if (!confirm(`Delete recording: ${filename}?`)) {
+                return;
+            }
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Deleting...';
+
+            try {
+                const response = await fetch(`/api/recordings/${filename}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    // Remove card from DOM
+                    const card = document.getElementById('card_' + videoId);
+                    card.style.transition = 'opacity 0.3s';
+                    card.style.opacity = '0';
+                    setTimeout(() => card.remove(), 300);
+
+                    // Update stats
+                    recordings = recordings.filter(r => r.filename !== filename);
+                    const totalSize = recordings.reduce((sum, r) => sum + r.size, 0);
+                    const sizeGB = (totalSize / (1024 * 1024 * 1024)).toFixed(2);
+                    document.getElementById('stats').textContent = `${recordings.length} recordings • ${sizeGB} GB total`;
+
+                    if (recordings.length === 0) {
+                        setTimeout(() => loadRecordings(), 400);
+                    }
+                } else {
+                    alert('Failed to delete recording');
+                    btn.disabled = false;
+                    btn.textContent = '🗑 Delete';
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+                btn.disabled = false;
+                btn.textContent = '🗑 Delete';
+            }
+        }
+
+        // Load recordings on page load
+        loadRecordings();
+
+        // Auto-refresh every 60 seconds
+        setInterval(loadRecordings, 60000);
+    </script>
+</body>
+</html>

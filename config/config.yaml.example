@@ -1,0 +1,37 @@
+WifiCountryCode: "US"
+MotionRecordingTimeout: 120
+AudioRecordingTimeout: 10
+RecordOnMotionAlert: true
+RecordOnAudioAlert: false
+RecordingBasePath: "/home/YOUR_USER/arlo-recordings/"
+MotionRecordingWebHookUrl: "http://httpbin.org/anything"
+AudioRecordingWebHookUrl: "http://httpbin.org/anything"
+UserRecordingWebHookUrl: "http://httpbin.org/anything"
+StatusUpdateWebHookUrl: "http://httpbin.org/anything"
+RegistrationWebHookUrl: "http://httpbin.org/anything"
+NotifyOnMotionAlert: true
+NotifyOnAudioAlert: false
+NotifyOnButtonPressAlert: true
+PIRStartState: "armed"
+PIRStartSensitivity: 80
+
+# Ntfy Alert Configuration (Self-Hosted or ntfy.sh)
+NtfyEnabled: true
+NtfyUrl: "https://ntfy.sh"  # Or your self-hosted ntfy server
+NtfyTopic: "your-arlo-alerts"
+NtfyPriority: "high"  # Options: min, low, default, high, urgent
+NtfyIncludeThumbnail: true  # Thumbnails generated from video files
+NtfyThumbnailBaseUrl: "https://your-server.example.com/api/thumbnail"  # Thumbnail API endpoint
+NtfyClickUrl: "https://your-server.example.com"  # Link to video viewer interface
+
+# Camera Aliases (Friendly Names)
+# Maps camera serial numbers to human-readable names for notifications and web viewer
+CameraAliases:
+  YOUR_CAMERA_SERIAL_1: "Front Door"
+  YOUR_CAMERA_SERIAL_2: "Back Yard"
+
+# Battery Warning Notifications
+# Send alerts when camera battery crosses threshold levels
+BatteryWarningEnabled: true
+BatteryWarningLow: 25       # Send warning when battery drops below this percentage (priority: high)
+BatteryWarningCritical: 10  # Send critical warning when battery drops below this percentage (priority: urgent)

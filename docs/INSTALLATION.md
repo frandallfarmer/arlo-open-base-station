@@ -98,7 +98,7 @@ If you only need access from your home network:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yourusername/arlo-open-base-station.git
+git clone https://github.com/frandallfarmer/arlo-open-base-station.git
 cd arlo-open-base-station
 
 # 2. Copy and edit the configuration

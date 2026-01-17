@@ -33,7 +33,7 @@ A DIY replacement for Arlo's commercial base stations (VMB4000/VMB5000/VMB4540) 
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/arlo-open-base-station.git
+git clone https://github.com/frandallfarmer/arlo-open-base-station.git
 cd arlo-open-base-station
 
 # Copy and edit configuration

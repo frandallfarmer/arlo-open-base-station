@@ -1,0 +1,31 @@
+#!/bin/bash
+# Bore tunnel for exposing arlo-viewer to the internet
+# This example tunnels arlo-viewer (port 3003) through a remote server
+#
+# Prerequisites:
+# - Install bore: cargo install bore-cli
+# - A server running bore server (bore server --min-port 8081 --max-port 8085)
+#
+# Add to crontab for auto-start:
+# @reboot /home/YOUR_USER/start-bore-tunnel.sh
+
+LOGFILE="/home/YOUR_USER/bore-tunnel.log"
+BORE_REMOTE="your-server.example.com"
+BORE_LOCAL_PORT="3003"  # arlo-viewer port
+BORE_REMOTE_PORT="8084" # port on remote server
+
+echo "$(date): Starting bore tunnel startup script" >> "$LOGFILE"
+
+# Check if tunnel is already running
+if pgrep -f "bore local $BORE_LOCAL_PORT.*$BORE_REMOTE_PORT" > /dev/null; then
+    echo "$(date): Bore tunnel already running, exiting" >> "$LOGFILE"
+    exit 0
+fi
+
+# Wait a bit for network to be ready after boot
+sleep 10
+
+echo "$(date): Starting bore tunnel: local $BORE_LOCAL_PORT -> $BORE_REMOTE:$BORE_REMOTE_PORT" >> "$LOGFILE"
+nohup bore local $BORE_LOCAL_PORT --to $BORE_REMOTE --port $BORE_REMOTE_PORT >> "$LOGFILE" 2>&1 &
+
+echo "$(date): Bore tunnel started (PID: $!)" >> "$LOGFILE"

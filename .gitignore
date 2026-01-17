@@ -1,0 +1,31 @@
+# Config files with real values
+config/install.conf
+config/config.yaml
+
+# Node modules
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+*.egg-info/
+
+# Logs
+*.log
+
+# Database
+*.db
+
+# Backups
+*.backup-*
+*.bak
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp

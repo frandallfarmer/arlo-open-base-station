@@ -1,0 +1,16 @@
+# dnsmasq configuration for Arlo base station
+# Provides DHCP and DNS services on the arlo network interface
+
+bind-interfaces
+except-interface=lo
+
+# Replace with your WiFi adapter interface name
+# Use `ip link` to find your interface
+interface=YOUR_INTERFACE_NAME
+
+# DHCP range for connected cameras (172.14.0.100-199)
+dhcp-range=172.14.0.100,172.14.0.199,255.255.255.0,infinite
+
+# Domain and gateway DNS entry
+domain=arlo
+address=/gateway.arlo/172.14.0.1

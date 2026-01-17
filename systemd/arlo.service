@@ -1,0 +1,15 @@
+[Unit]
+Description=Arlo Control Service
+After=multi-user.target
+StartLimitIntervalSec=
+
+[Service]
+WorkingDirectory=/opt/arlo-cam-api/
+User=arlo
+Type=idle
+ExecStart=/opt/arlo-cam-api/venv/bin/python3 /opt/arlo-cam-api/server.py
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

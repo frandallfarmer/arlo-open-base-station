@@ -8,6 +8,7 @@ Type=simple
 User=YOUR_USERNAME
 # Change to where you installed arlo-viewer
 WorkingDirectory=/home/YOUR_USERNAME/arlo-viewer
+ExecStartPre=/usr/bin/bash -c "/usr/bin/fuser -k 3003/tcp || true"
 ExecStart=/usr/bin/node server.js
 Restart=always
 RestartSec=10

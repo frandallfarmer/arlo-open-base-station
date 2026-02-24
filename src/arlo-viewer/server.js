@@ -3,21 +3,40 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 const crypto = require('crypto');
+const https = require('https');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = 3003;
 const RECORDINGS_DIR = process.env.RECORDINGS_DIR || '/home/' + process.env.USER + '/arlo-recordings';
 
-// Simple auth configuration - override these via environment variables
-const AUTH_PASSWORD = process.env.AUTH_PASSWORD || 'changeme';
-const AUTH_COOKIE_NAME = 'arlo_auth';
-const AUTH_SECRET = process.env.AUTH_SECRET || 'change-this-secret';
-
-function swizzle(password) {
-    return crypto.createHash('sha256').update(password + AUTH_SECRET).digest('hex').substring(0, 32);
+// Auth configuration - must be set via /etc/arlo/viewer.env
+if (!process.env.AUTH_PASSWORD || !process.env.AUTH_SECRET || !process.env.THUMBNAIL_SECRET || !process.env.TLS_KEY || !process.env.TLS_CERT) {
+    console.error('AUTH_PASSWORD, AUTH_SECRET, THUMBNAIL_SECRET, TLS_KEY, and TLS_CERT must be set. See /etc/arlo/viewer.env');
+    process.exit(1);
 }
 
-const VALID_TOKEN = swizzle(AUTH_PASSWORD);
+const AUTH_PASSWORD = process.env.AUTH_PASSWORD;
+const AUTH_COOKIE_NAME = 'arlo_auth';
+const AUTH_SECRET = process.env.AUTH_SECRET;
+const THUMBNAIL_SECRET = process.env.THUMBNAIL_SECRET;
+
+function hashPassword(password) {
+    // PBKDF2 with AUTH_SECRET as salt, 100k iterations
+    return crypto.pbkdf2Sync(password, AUTH_SECRET, 100000, 32, 'sha256').toString('hex');
+}
+
+const VALID_TOKEN = hashPassword(AUTH_PASSWORD);
+
+function thumbnailToken(filename) {
+    return crypto.createHmac('sha256', THUMBNAIL_SECRET).update(filename).digest('hex');
+}
+
+function safeFilePath(dir, filename) {
+    const resolved = path.resolve(dir, filename);
+    if (!resolved.startsWith(path.resolve(dir) + path.sep)) return null;
+    return resolved;
+}
 
 // Login page HTML
 const LOGIN_PAGE = `<!DOCTYPE html>
@@ -47,6 +66,14 @@ const LOGIN_PAGE = `<!DOCTYPE html>
     </div>
 </body></html>`;
 
+// Security headers
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    next();
+});
+
 // Parse cookies middleware
 app.use((req, res, next) => {
     const cookies = {};
@@ -62,8 +89,8 @@ app.use((req, res, next) => {
 });
 
 // Auth middleware - check cookie on all requests except /login and /api/thumbnail
+// Thumbnails bypass cookie auth but require HMAC token (for ntfy notification access)
 app.use((req, res, next) => {
-    // Allow login and thumbnail endpoints without auth (thumbnails needed for ntfy notifications)
     if (req.path === '/login' || req.path.startsWith('/api/thumbnail/')) return next();
 
     const token = req.cookies[AUTH_COOKIE_NAME];
@@ -75,12 +102,15 @@ app.use((req, res, next) => {
     res.send(LOGIN_PAGE);
 });
 
+// Rate limiting for login endpoint (10 attempts per 15 minutes)
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
+
 // Login endpoint
 app.use(express.urlencoded({ extended: true }));
-app.post('/login', (req, res) => {
+app.post('/login', loginLimiter, (req, res) => {
     const password = req.body.password;
-    if (password === AUTH_PASSWORD) {
-        res.setHeader('Set-Cookie', `${AUTH_COOKIE_NAME}=${VALID_TOKEN}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`);
+    if (hashPassword(password) === VALID_TOKEN) {
+        res.setHeader('Set-Cookie', `${AUTH_COOKIE_NAME}=${VALID_TOKEN}; Path=/; HttpOnly; SameSite=Strict; Secure; Max-Age=86400`);
         res.redirect('/');
     } else {
         res.send(LOGIN_PAGE.replace('style="display:none;"', ''));
@@ -281,12 +311,17 @@ app.get('/api/recordings', (req, res) => {
                         // Use friendly name from aliases if available
                         const cameraName = cameraSerial ? (CAMERA_ALIASES[cameraSerial] || cameraSerial) : 'unknown';
 
+                        // Generate signed thumbnail URL
+                        const thumbnailFilename = file.replace(/\.(mp4|mkv)$/, '.jpg');
+                        const thumbToken = thumbnailToken(thumbnailFilename);
+
                         recordings.push({
                             filename: file,
                             size: stats.size,
                             timestamp: timestamp || new Date(stats.mtime).toISOString(),
                             mtime: stats.mtime,
-                            camera: cameraName
+                            camera: cameraName,
+                            thumbnailUrl: `/api/thumbnail/${thumbnailFilename}?token=${thumbToken}`
                         });
                     }
 
@@ -305,10 +340,9 @@ app.get('/api/recordings', (req, res) => {
 // API: Serve video file
 app.get('/api/video/:filename', (req, res) => {
     const filename = req.params.filename;
-    const filePath = path.join(RECORDINGS_DIR, filename);
+    const filePath = safeFilePath(RECORDINGS_DIR, filename);
 
-    // Security check: ensure filename doesn't contain path traversal
-    if (filename.includes('..') || filename.includes('/')) {
+    if (!filePath) {
         return res.status(400).json({ error: 'Invalid filename' });
     }
 
@@ -359,17 +393,14 @@ app.get('/api/video/:filename', (req, res) => {
     }
 });
 
-// API: Serve thumbnail image
+// API: Serve thumbnail image (requires HMAC token)
 app.get('/api/thumbnail/:filename', (req, res) => {
-    const filename = req.params.filename;
+    const { filename } = req.params;
+    const expected = thumbnailToken(filename);
+    if (req.query.token !== expected) return res.status(403).end();
 
-    // Security check: ensure filename doesn't contain path traversal
-    if (filename.includes('..') || filename.includes('/')) {
-        return res.status(400).json({ error: 'Invalid filename' });
-    }
-
-    // Serve the thumbnail file directly (should be .jpg)
-    const filePath = path.join(RECORDINGS_DIR, filename);
+    const filePath = safeFilePath(RECORDINGS_DIR, filename);
+    if (!filePath) return res.status(400).json({ error: 'Invalid filename' });
 
     // Check if thumbnail exists
     if (!fs.existsSync(filePath)) {
@@ -383,10 +414,9 @@ app.get('/api/thumbnail/:filename', (req, res) => {
 // API: Delete recording (and associated thumbnail)
 app.delete('/api/recordings/:filename', (req, res) => {
     const filename = req.params.filename;
-    const filePath = path.join(RECORDINGS_DIR, filename);
+    const filePath = safeFilePath(RECORDINGS_DIR, filename);
 
-    // Security check
-    if (filename.includes('..') || filename.includes('/')) {
+    if (!filePath) {
         return res.status(400).json({ error: 'Invalid filename' });
     }
 
@@ -525,6 +555,12 @@ app.get('/api/stream/:serial/:file', (req, res) => {
     fs.createReadStream(filePath).pipe(res);
 });
 
-app.listen(PORT, () => {
-    console.log(`Arlo Viewer running on http://localhost:${PORT}`);
+// Start HTTPS server
+const tlsOptions = {
+    key: fs.readFileSync(process.env.TLS_KEY),
+    cert: fs.readFileSync(process.env.TLS_CERT),
+};
+
+https.createServer(tlsOptions, app).listen(PORT, () => {
+    console.log(`Arlo Viewer HTTPS server running on port ${PORT}`);
 });

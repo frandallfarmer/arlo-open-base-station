@@ -28,6 +28,9 @@ logging.basicConfig(
     ]
 )
 
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(_BASE_DIR, 'arlo.db')
+
 with open(r'config.yaml') as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
 
@@ -37,7 +40,7 @@ arlo.camera.CAMERA_ALIASES = config.get('CameraAliases', {})
 
 webhook_manager = WebHookManager(config)
 
-with sqlite3.connect('arlo.db') as conn:
+with sqlite3.connect(DB_PATH) as conn:
     c = conn.cursor()
     c.execute("CREATE TABLE IF NOT EXISTS camera (ip text, serialnumber text, hostname text, status text, register_set text, friendlyname text)")
     c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_camera_serialnumber ON camera (serialnumber)")

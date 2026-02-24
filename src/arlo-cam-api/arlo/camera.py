@@ -1,8 +1,12 @@
 import json
+import os
 import socket
 import sqlite3
 import time
 import sys
+
+# Absolute path to database (parent of this package directory)
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'arlo.db')
 
 from arlo.messages import Message
 from arlo.socket import ArloSocket
@@ -63,7 +67,7 @@ class Camera:
                 return result
 
     def persist(self):
-        with sqlite3.connect('arlo.db') as conn:
+        with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
             # Remove the IP for any redundant camera that has the same IP...
             c.execute("UPDATE camera SET ip = 'UNKNOWN' WHERE ip = ? AND serialnumber <> ?", (self.ip, self.serial_number))
@@ -190,7 +194,7 @@ class Camera:
 
     @staticmethod
     def from_db_serial(serial):
-        with sqlite3.connect('arlo.db') as conn:
+        with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
             c.execute("SELECT * FROM camera WHERE serialnumber = ?", (serial,))
             result = c.fetchone()
@@ -198,7 +202,7 @@ class Camera:
 
     @staticmethod
     def from_db_ip(ip):
-        with sqlite3.connect('arlo.db') as conn:
+        with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
             c.execute("SELECT * FROM camera WHERE ip = ?", (ip,))
             result = c.fetchone()

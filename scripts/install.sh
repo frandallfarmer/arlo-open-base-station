@@ -61,6 +61,14 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 0
 fi
 
+# ===== Generate Secrets =====
+log_info "Generating secrets..."
+mkdir -p /etc/arlo
+chmod 750 /etc/arlo
+AUTH_SECRET=$(openssl rand -hex 32)
+THUMBNAIL_SECRET=$(openssl rand -hex 32)
+VIEWER_PASSWORD=$(openssl rand -base64 15 | tr -dc 'a-zA-Z0-9' | head -c 20)
+
 # ===== Install System Packages =====
 log_info "Installing required packages..."
 DEBIAN_FRONTEND=noninteractive apt install -y \
@@ -131,6 +139,9 @@ cat >> "$INSTALL_DIR/config.yaml" << EOF
 BatteryWarningEnabled: true
 BatteryWarningLow: 25
 BatteryWarningCritical: 10
+
+# Thumbnail HMAC secret (must match viewer.env THUMBNAIL_SECRET)
+ThumbnailSecret: "$THUMBNAIL_SECRET"
 EOF
 
 chown $SERVICE_USER:$SERVICE_USER "$INSTALL_DIR/config.yaml"
@@ -139,6 +150,30 @@ chown $SERVICE_USER:$SERVICE_USER "$INSTALL_DIR/config.yaml"
 log_info "Creating recordings directory: $RECORDINGS_PATH"
 mkdir -p "$RECORDINGS_PATH"
 chown $USERNAME:$USERNAME "$RECORDINGS_PATH"
+
+# ===== Generate TLS Certificate =====
+log_info "Generating self-signed TLS certificate (10 years)..."
+mkdir -p /etc/arlo/tls
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+    -keyout /etc/arlo/tls/key.pem \
+    -out /etc/arlo/tls/cert.pem \
+    -subj "/CN=arlo-base/O=Arlo Open Base Station" 2>/dev/null
+chmod 640 /etc/arlo/tls/key.pem /etc/arlo/tls/cert.pem
+chown root:"$USERNAME" /etc/arlo/tls/key.pem /etc/arlo/tls/cert.pem
+chmod 750 /etc/arlo/tls
+chown root:"$USERNAME" /etc/arlo/tls
+
+# ===== Write viewer.env =====
+log_info "Writing /etc/arlo/viewer.env..."
+cat > /etc/arlo/viewer.env << EOF
+AUTH_PASSWORD=$VIEWER_PASSWORD
+AUTH_SECRET=$AUTH_SECRET
+THUMBNAIL_SECRET=$THUMBNAIL_SECRET
+TLS_KEY=/etc/arlo/tls/key.pem
+TLS_CERT=/etc/arlo/tls/cert.pem
+EOF
+chmod 640 /etc/arlo/viewer.env
+chown root:"$USERNAME" /etc/arlo/viewer.env /etc/arlo
 
 # ===== Configure dnsmasq =====
 log_info "Configuring dnsmasq..."
@@ -247,6 +282,7 @@ After=network.target
 Type=simple
 User=$USERNAME
 WorkingDirectory=$VIEWER_DIR
+EnvironmentFile=/etc/arlo/viewer.env
 ExecStart=/usr/bin/node server.js
 Restart=always
 RestartSec=10
@@ -335,6 +371,11 @@ echo ""
 log_info "After reboot, check services with:"
 log_info "  systemctl status arlo arlo-viewer"
 echo ""
-log_info "View recordings at: http://localhost:3003"
+log_info "View recordings at: https://localhost:3003"
+echo ""
+log_warn "========================================"
+log_warn "GENERATED WEB VIEWER PASSWORD (save this!):"
+log_warn "  $VIEWER_PASSWORD"
+log_warn "========================================"
 echo ""
 log_warn "Now reboot to complete setup: sudo reboot"

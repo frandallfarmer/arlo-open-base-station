@@ -186,6 +186,16 @@
     <button class="refresh-btn" onclick="loadRecordings()" title="Refresh">↻</button>
 
     <script>
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         let recordings = [];
         let cameraStatus = {};  // Map of serial -> {online, friendly_name}
 
@@ -252,27 +262,27 @@
             const friendlyName = camInfo ? camInfo.friendly_name : recording.camera;
 
             const liveButton = isOnline
-                ? `<button class="live-btn" onclick="openStreamWindow('${serial}', '${friendlyName}')">📺 Live</button>`
+                ? `<button class="live-btn" data-serial="${escapeHtml(serial)}" data-name="${escapeHtml(friendlyName)}" onclick="openStreamWindow(this.dataset.serial, this.dataset.name)">📺 Live</button>`
                 : '';
 
             return `
                 <div class="recording-card" id="card_${videoId}">
                     <div class="video-container">
                         <video id="video_${videoId}" controls preload="metadata">
-                            <source src="/api/video/${recording.filename}" type="video/mp4">
+                            <source src="/api/video/${escapeHtml(recording.filename)}" type="video/mp4">
                             Your browser does not support the video tag.
                         </video>
                     </div>
                     <div class="card-info">
-                        <div class="timestamp">${recording.timestamp}</div>
+                        <div class="timestamp">${escapeHtml(recording.timestamp)}</div>
                         <div class="metadata">
-                            <span>Camera: ${recording.camera}</span>
+                            <span>Camera: ${escapeHtml(recording.camera)}</span>
                             <span>${sizeKB} KB</span>
                         </div>
                         <div class="actions">
                             <button class="play-btn" onclick="playVideo('${videoId}')">▶ Play</button>
                             ${liveButton}
-                            <button class="delete-btn" onclick="deleteRecording('${recording.filename}', '${videoId}')">🗑 Delete</button>
+                            <button class="delete-btn" data-filename="${escapeHtml(recording.filename)}" data-videoid="${videoId}" onclick="deleteRecording(this.dataset.filename, this.dataset.videoid)">🗑 Delete</button>
                         </div>
                     </div>
                 </div>

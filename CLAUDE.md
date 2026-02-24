@@ -243,6 +243,7 @@ Key streaming files:
 ## Security Notes
 
 - All recordings stored locally (no cloud)
-- Web viewer uses cookie-based authentication
+- Web viewer uses HTTPS (self-signed cert) with cookie-based authentication
+- Flask API (port 5000) binds to localhost only — not reachable from the network
 - Push notifications via self-hosted ntfy (optional)
 - No internet required for core functionality

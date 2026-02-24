@@ -35,3 +35,7 @@ CameraAliases:
 BatteryWarningEnabled: true
 BatteryWarningLow: 25       # Send warning when battery drops below this percentage (priority: high)
 BatteryWarningCritical: 10  # Send critical warning when battery drops below this percentage (priority: urgent)
+
+# Thumbnail HMAC secret — must match THUMBNAIL_SECRET in /etc/arlo/viewer.env
+# Generated automatically by install.sh; copy here if setting up manually
+ThumbnailSecret: ""

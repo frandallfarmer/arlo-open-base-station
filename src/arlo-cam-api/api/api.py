@@ -3,7 +3,9 @@ import threading
 import sqlite3
 import json
 import functools
+import logging
 import os
+import re
 import time
 import shutil
 from arlo.camera import Camera
@@ -15,6 +17,9 @@ app = flask.Flask(__name__)
 app.config["DEBUG"] = False
 app.use_reloader=False
 
+# Absolute path to database, relative to this package root
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'arlo.db')
+
 # Global dict to track active streams
 active_streams = {}
 
@@ -22,11 +27,24 @@ active_streams = {}
 if os.path.exists('/tmp/arlo-stream'):
     shutil.rmtree('/tmp/arlo-stream', ignore_errors=True)
 
+def require_bool(val):
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, int) and val in (0, 1):
+        return bool(val)
+    if isinstance(val, str) and val in ('0', '1', 'true', 'false'):
+        return val in ('1', 'true')
+    flask.abort(400)
+
+
 def validate_camera_request(body_required=True):
     def decorator(f):
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
-            g.camera = Camera.from_db_serial(kwargs['serial'])
+            serial = kwargs.get('serial', '')
+            if not re.match(r'^[A-Za-z0-9_-]{6,24}$', serial):
+                flask.abort(400)
+            g.camera = Camera.from_db_serial(serial)
             if g.camera is None:
                 flask.abort(404)
 
@@ -45,7 +63,7 @@ def home():
 
 @app.route('/camera', methods=['GET'])
 def list():
-    with sqlite3.connect('arlo.db') as conn:
+    with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         c.execute("SELECT * FROM camera")
         rows = c.fetchall()
@@ -61,7 +79,7 @@ def list():
 def cameras_status():
     """Get comprehensive status for all cameras"""
     import time
-    with sqlite3.connect('arlo.db') as conn:
+    with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         c.execute("SELECT ip, serialnumber, hostname, status, register_set, friendlyname, last_seen, mac_address, connected, armed FROM camera")
         rows = c.fetchall()
@@ -89,7 +107,7 @@ def cameras_status():
                         charging_state = status_data.dictionary.get('ChargingState')
                         charger_tech = status_data.dictionary.get('ChargerTech')
                         battery_voltage = status_data.dictionary.get('Bat1Volt')
-                    except:
+                    except Exception as e:
                         pass
 
                 # Convert last_seen from Julian day to ISO timestamp for readability
@@ -148,12 +166,13 @@ def status_request(serial):
 @app.route('/camera/<serial>/userstreamactive', methods=['POST'])
 @validate_camera_request()
 def user_stream_active(serial):
-    active = g.args["active"]
+    active = g.args.get("active")
     if active is None:
         flask.abort(400)
+    active = require_bool(active)
 
     # Trigger recording when motion detected (active=1)
-    if int(active) == 1:
+    if active:
         import subprocess
         subprocess.Popen([os.path.expanduser('~/arlo-record-oneshot.sh')],
                         stdout=subprocess.DEVNULL,
@@ -247,13 +266,12 @@ def request_record(serial):
 @app.route('/camera/<serial>/friendlyname', methods=['POST'])
 @validate_camera_request()
 def set_friendlyname(serial):
-    if g.args['name'] is None:
+    name = g.args.get('name')
+    if not name or not isinstance(name, str) or len(name) > 64:
         flask.abort(400)
-    else:
-        g.camera.friendly_name = g.args['name']
-        g.camera.persist()
-
-        return flask.jsonify({"result":True})
+    g.camera.friendly_name = name.strip()
+    g.camera.persist()
+    return flask.jsonify({"result":True})
 
 @app.route('/camera/<serial>/activityzones', methods=['POST','DELETE'])
 @validate_camera_request()
@@ -267,21 +285,24 @@ def set_activity_zones(serial):
 
 @app.route('/snapshot/<identifier>/', methods=['POST'])
 def receive_snapshot(identifier):
+    if not re.match(r'^[a-zA-Z0-9_-]+$', identifier):
+        flask.abort(400)
     if 'file' not in flask.request.files:
         flask.abort(400)
-    else:
-        file = flask.request.files['file']
-        if file.filename=='':
-            flask.abort(400)
-        else:
-            start_path = os.path.abspath('/tmp')
-            target_path = os.path.join(start_path,f"{identifier}.jpg")
-            common_prefix = os.path.commonprefix([target_path, start_path])
-            if (common_prefix != start_path):
-                flask.abort(400)
-            else:
-                file.save(target_path)
-            return ""
+    file = flask.request.files['file']
+    if file.filename == '':
+        flask.abort(400)
+    # Check file size (5MB limit)
+    file.seek(0, 2)
+    if file.tell() > 5 * 1024 * 1024:
+        flask.abort(413)
+    file.seek(0)
+    start_path = os.path.realpath('/tmp')
+    target_path = os.path.realpath(os.path.join(start_path, f"{identifier}.jpg"))
+    if not target_path.startswith(start_path + os.sep):
+        flask.abort(400)
+    file.save(target_path)
+    return ""
 
 @app.route('/camera/<serial>/stream/start', methods=['POST'])
 @validate_camera_request(body_required=False)
@@ -325,9 +346,10 @@ def stream_start(serial):
             }), 500
 
     except Exception as e:
+        logging.error(f"stream_start failed for {serial}: {e}")
         return flask.jsonify({
             "result": False,
-            "error": str(e)
+            "error": "Failed to start stream"
         }), 500
 
 @app.route('/camera/<serial>/stream/stop', methods=['POST'])
@@ -356,9 +378,10 @@ def stream_stop(serial):
         return flask.jsonify({"result": True})
 
     except Exception as e:
+        logging.error(f"stream_stop failed for {serial}: {e}")
         return flask.jsonify({
             "result": False,
-            "error": str(e)
+            "error": "Failed to stop stream"
         }), 500
 
 @app.route('/camera/<serial>/stream/status', methods=['GET'])
@@ -380,4 +403,4 @@ def stream_status(serial):
 
 
 def get_thread():
-    return threading.Thread(target=app.run(host='0.0.0.0'))
+    return threading.Thread(target=lambda: app.run(host='127.0.0.1', port=5000))

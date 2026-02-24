@@ -92,7 +92,7 @@ For remote access to recordings and push notifications from outside your home ne
 ### Local-Only Operation
 If you only need access from your home network:
 - Skip bore tunnel setup
-- Access viewer directly at `http://arlo-base:3003`
+- Access viewer directly at `https://arlo-base:3003` (accept the self-signed cert warning)
 - Use public `ntfy.sh` for notifications (no self-hosting needed)
 
 ## Quick Start
@@ -191,8 +191,8 @@ iw dev YOUR_WIFI_INTERFACE info
 # Check DHCP is ready
 systemctl status dnsmasq
 
-# View the web interface
-curl http://localhost:3003
+# View the web interface (self-signed cert, -k skips verification)
+curl -k https://localhost:3003
 ```
 
 ## Camera Setup

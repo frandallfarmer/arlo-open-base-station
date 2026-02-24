@@ -66,6 +66,14 @@ const LOGIN_PAGE = `<!DOCTYPE html>
     </div>
 </body></html>`;
 
+// Security headers
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    next();
+});
+
 // Parse cookies middleware
 app.use((req, res, next) => {
     const cookies = {};
@@ -102,7 +110,7 @@ app.use(express.urlencoded({ extended: true }));
 app.post('/login', loginLimiter, (req, res) => {
     const password = req.body.password;
     if (hashPassword(password) === VALID_TOKEN) {
-        res.setHeader('Set-Cookie', `${AUTH_COOKIE_NAME}=${VALID_TOKEN}; Path=/; HttpOnly; SameSite=Strict; Secure; Max-Age=2592000`);
+        res.setHeader('Set-Cookie', `${AUTH_COOKIE_NAME}=${VALID_TOKEN}; Path=/; HttpOnly; SameSite=Strict; Secure; Max-Age=86400`);
         res.redirect('/');
     } else {
         res.send(LOGIN_PAGE.replace('style="display:none;"', ''));

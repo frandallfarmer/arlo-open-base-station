@@ -10,6 +10,7 @@ class ArloSocket:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         else:
             self.sock = sock
+        self.sock.settimeout(30.0)
 
     def connect(self, host, port):
         self.sock.connect((host, port))

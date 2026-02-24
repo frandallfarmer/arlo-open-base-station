@@ -3,6 +3,7 @@ import threading
 import sqlite3
 import json
 import functools
+import logging
 import os
 import re
 import time
@@ -15,6 +16,9 @@ from helpers.stream_manager import StreamManager
 app = flask.Flask(__name__)
 app.config["DEBUG"] = False
 app.use_reloader=False
+
+# Absolute path to database, relative to this package root
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'arlo.db')
 
 # Global dict to track active streams
 active_streams = {}
@@ -59,7 +63,7 @@ def home():
 
 @app.route('/camera', methods=['GET'])
 def list():
-    with sqlite3.connect('arlo.db') as conn:
+    with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         c.execute("SELECT * FROM camera")
         rows = c.fetchall()
@@ -75,7 +79,7 @@ def list():
 def cameras_status():
     """Get comprehensive status for all cameras"""
     import time
-    with sqlite3.connect('arlo.db') as conn:
+    with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         c.execute("SELECT ip, serialnumber, hostname, status, register_set, friendlyname, last_seen, mac_address, connected, armed FROM camera")
         rows = c.fetchall()
@@ -262,13 +266,12 @@ def request_record(serial):
 @app.route('/camera/<serial>/friendlyname', methods=['POST'])
 @validate_camera_request()
 def set_friendlyname(serial):
-    if g.args['name'] is None:
+    name = g.args.get('name')
+    if not name or not isinstance(name, str) or len(name) > 64:
         flask.abort(400)
-    else:
-        g.camera.friendly_name = g.args['name']
-        g.camera.persist()
-
-        return flask.jsonify({"result":True})
+    g.camera.friendly_name = name.strip()
+    g.camera.persist()
+    return flask.jsonify({"result":True})
 
 @app.route('/camera/<serial>/activityzones', methods=['POST','DELETE'])
 @validate_camera_request()
@@ -343,9 +346,10 @@ def stream_start(serial):
             }), 500
 
     except Exception as e:
+        logging.error(f"stream_start failed for {serial}: {e}")
         return flask.jsonify({
             "result": False,
-            "error": str(e)
+            "error": "Failed to start stream"
         }), 500
 
 @app.route('/camera/<serial>/stream/stop', methods=['POST'])
@@ -374,9 +378,10 @@ def stream_stop(serial):
         return flask.jsonify({"result": True})
 
     except Exception as e:
+        logging.error(f"stream_stop failed for {serial}: {e}")
         return flask.jsonify({
             "result": False,
-            "error": str(e)
+            "error": "Failed to stop stream"
         }), 500
 
 @app.route('/camera/<serial>/stream/status', methods=['GET'])

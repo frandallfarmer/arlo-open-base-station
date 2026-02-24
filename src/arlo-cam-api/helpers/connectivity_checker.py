@@ -1,8 +1,11 @@
+import os
 import subprocess
 import sqlite3
 import threading
 import time
 import logging
+
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'arlo.db')
 
 def check_arp(mac_address):
     """Check if MAC address is in ARP table"""
@@ -21,7 +24,7 @@ def check_arp(mac_address):
 def update_camera_connectivity():
     """Update connectivity status for all cameras in database"""
     try:
-        with sqlite3.connect('/opt/arlo-cam-api/arlo.db') as conn:
+        with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
             
             # Get all cameras with MAC addresses

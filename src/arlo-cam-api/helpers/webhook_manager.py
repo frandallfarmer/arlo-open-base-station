@@ -1,8 +1,14 @@
+import hmac
+import hashlib
 import time
 import requests
 from helpers.safe_print import s_print
 from webhooks import webhook
 from webhooks.senders import targeted
+
+
+def thumbnail_token(filename, secret):
+    return hmac.new(secret.encode(), filename.encode(), hashlib.sha256).hexdigest()
 
 class WebHookManager:
 
@@ -39,17 +45,21 @@ class WebHookManager:
             # Add thumbnail if configured
             if self.config.get('NtfyIncludeThumbnail', False):
                 # Convert to .jpg filename for the thumbnail URL
-                thumbnail_url = self.config.get('NtfyThumbnailBaseUrl', '')
-                if thumbnail_url:
+                thumbnail_base_url = self.config.get('NtfyThumbnailBaseUrl', '')
+                if thumbnail_base_url:
                     # Extract filename and convert .mkv to .jpg
                     video_filename = file_name.split('/')[-1]
                     thumbnail_filename = video_filename.replace('.mkv', '.jpg')
-                    headers["Attach"] = f"{thumbnail_url}/{thumbnail_filename}"
+                    # Append HMAC token so viewer can authenticate the request
+                    secret = self.config.get('ThumbnailSecret', '')
+                    if secret:
+                        token = thumbnail_token(thumbnail_filename, secret)
+                        headers["Attach"] = f"{thumbnail_base_url}/{thumbnail_filename}?token={token}"
+                    else:
+                        headers["Attach"] = f"{thumbnail_base_url}/{thumbnail_filename}"
 
             # Add click action to video viewer
             base_url = self.config.get('NtfyClickUrl', 'https://security.example.com')
-            # TODO: Add specific video linking when arlo-viewer supports URL parameters
-
             headers["Click"] = base_url
             # Add action button with custom text
             headers["Actions"] = f"view, See video, {base_url}, clear=true"

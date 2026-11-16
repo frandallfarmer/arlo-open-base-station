@@ -1,0 +1,61 @@
+# MediaMTX config for Arlo Open Base Station - on-demand live view.
+# Installed to /etc/mediamtx/mediamtx.yml by scripts/install.sh (MediaMTX v1.9.x).
+#
+# Clients (Home Assistant, VLC, go2rtc, Frigate...) open
+#   rtsp://<base-station-LAN-IP>:8554/arlo_<CAMERA_SERIAL>
+# (H.264 1080p, or HEVC 2560x1440 on Pro 3/4-class cameras with
+#  config.yaml LiveStreamQuality: "2k")
+# MediaMTX then starts helpers/live_publisher.py, which wakes the camera and
+# relays its stream. When the last client leaves the camera goes back to sleep.
+
+logLevel: info
+logDestinations: [stdout]
+
+rtsp: yes
+rtspAddress: :8554
+protocols: [tcp, udp]
+
+rtmp: no
+hls: no
+webrtc: no
+srt: no
+# Local-only API: helpers/always_on_feed.py polls it to see whether a camera
+# is live without becoming a reader (which would keep it awake).
+api: yes
+apiAddress: 127.0.0.1:9997
+
+# Anyone on the LAN can read; only localhost (the publisher) can publish.
+authInternalUsers:
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: read
+      - action: playback
+  - user: any
+    pass:
+    ips: ['127.0.0.1', '::1']
+    permissions:
+      - action: publish
+      - action: api
+
+paths:
+  "~^arlo_([A-Za-z0-9]+)$":
+    runOnDemand: /usr/bin/python3 /opt/arlo-cam-api/helpers/live_publisher.py $G1
+    runOnDemandRestart: yes
+    # Battery cameras need a few seconds to wake + open RTSP
+    runOnDemandStartTimeout: 45s
+    # Keep the camera streaming briefly after the last viewer leaves
+    runOnDemandCloseAfter: 15s
+  # Always-on feed for NVRs such as Frigate (published by arlo-feed@<serial>.service):
+  # live video while the camera is awake, last frame while it sleeps. Never wakes it.
+  "~^arlo_([A-Za-z0-9]+)_feed$":
+    source: publisher
+  # Instant-start viewing for NVR/browser players (Frigate "Live"). Published all the
+  # time by arlo-feed@<serial> (same picture as _feed), so it starts at once; every
+  # reader runs view_publisher.py, which wakes the camera, and the picture turns
+  # live once the camera streams (~5-10 s). Point NVR *recording* at _feed, not here.
+  "~^arlo_([A-Za-z0-9]+)_view$":
+    source: publisher
+    runOnRead: /usr/bin/python3 /opt/arlo-cam-api/helpers/view_publisher.py $MTX_PATH
+    runOnReadRestart: no

@@ -1,0 +1,13 @@
+[Unit]
+Description=MediaMTX RTSP server (Arlo on-demand live view)
+After=network-online.target arlo.service
+Wants=network-online.target
+
+[Service]
+User=arlo
+ExecStart=/usr/local/bin/mediamtx /etc/mediamtx/mediamtx.yml
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

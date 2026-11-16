@@ -8,11 +8,11 @@ itsdangerous==1.1.0
 Jinja2==2.11.2
 MarkupSafe==1.1.1
 pyaml==20.4.0
-python-vlc==3.0.11115
+python-vlc==3.0.20123
 PyYAML==5.3.1
 requests==2.25.0
 standardjson==0.3.1
 urllib3==1.26.2
 webhooks==0.4.2
 Werkzeug==1.0.1
-wrapt==1.12.1
+wrapt==1.16.0

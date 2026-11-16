@@ -14,11 +14,12 @@ class StreamManager:
     the correct 5-second interval.
     """
 
-    def __init__(self, camera_serial, camera_ip, camera=None, is4k=False):
+    def __init__(self, camera_serial, camera_ip, camera=None, is4k=False, rtsp_transport='udp'):
         self.camera_serial = camera_serial
         self.camera_ip = camera_ip
         self.camera = camera  # Not used but kept for API compatibility
         self.is4k = is4k
+        self.rtsp_transport = rtsp_transport
         self.gst_process = None
         self.cleanup_timer = None
 
@@ -49,7 +50,8 @@ class StreamManager:
                 'python3', helper_script,
                 self.rtsp_url,
                 self.stream_dir,
-                str(duration)
+                str(duration),
+                self.rtsp_transport
             ]
 
             s_print(f"[StreamManager] Starting GStreamer for {self.camera_serial} at {self.rtsp_url}")

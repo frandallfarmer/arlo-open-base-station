@@ -12,7 +12,7 @@ This is a working system, not a polished product. Installation requires configur
 
 | Component | Tested Model |
 |-----------|-------------|
-| Camera | Arlo Pro (VMC4030) |
+| Camera | Arlo Pro (VMC4030); Arlo Pro 3/4 (VMC4040P/VMC4041P) profile added, unverified |
 | WiFi AP | TP-Link Omada EAP225 |
 | Compute | Surface Book 3 running Ubuntu 24.04 |
 
@@ -100,6 +100,8 @@ See [docs/INSTALLATION.md](docs/INSTALLATION.md) for complete setup instructions
 - [Dependencies](docs/DEPENDENCIES.md) - Required packages and external services
 - [WiFi Hardware](docs/WIFI-HARDWARE.md) - Critical hardware compatibility info
 - [System Architecture](docs/ARLO-SYSTEM-V1.0.md) - Technical deep-dive
+- [Proxmox VM + Omada APs](docs/PROXMOX-OMADA.md) - VLAN-based deployment, WPS pairing
+- [Home Assistant](docs/HOME-ASSISTANT.md) - live RTSP, snapshots, status, arm/disarm, motion
 
 ## Configuration
 

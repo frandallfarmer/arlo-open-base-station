@@ -1,66 +1,89 @@
 # Arlo Open Base Station - Installation Configuration
-# Copy this file and fill in your values before running scripts/install.sh
+# Copy this file to config/install.conf and fill in your values before running scripts/install.sh
 
 # ===== USER CONFIGURATION =====
-# Your Linux username (for file paths and service ownership)
+# Linux user that runs the web viewer (must already exist)
 USERNAME="your_username"
 
 # ===== NETWORK CONFIGURATION =====
-# WiFi interface for the access point (run 'ip link' to find yours)
-# Examples: wlp3s0, wlan0, wlx00c0cab955c4
+# AP_MODE selects how cameras reach the base station:
+#   "hostapd"  - a WiFi adapter in this machine is the camera AP (original setup).
+#                Set WIFI_INTERFACE; it gets 172.14.0.1/24.
+#   "external" - an enterprise AP (e.g. TP-Link Omada) bridges a camera SSID onto a
+#                wired interface / VLAN of this machine (recommended - cameras sleep
+#                for hours instead of reconnecting every 30 min). Set ARLO_INTERFACE.
+#                Typical for a Proxmox VM: a second NIC on a bridge tagged with the
+#                camera VLAN.
+AP_MODE="hostapd"
+
+# hostapd mode: WiFi interface for the access point (run 'ip link' to find yours)
 WIFI_INTERFACE="wlan0"
 
-# Ethernet interface (for SSH access and internet)
+# external mode: wired interface that carries the camera SSID's VLAN (e.g. eth1)
+ARLO_INTERFACE=""
+
+# external mode, optional: a USB WiFi adapter used ONLY while pairing cameras.
+# Arlo cameras learn the SSID/password via WPS push-button, which Omada APs don't
+# offer. scripts/arlo-pair.sh brings up a temporary WPS AP with the same SSID and
+# password on this adapter (bridged with ARLO_INTERFACE); afterwards the cameras
+# move to the enterprise AP on their own. Leave empty if you pair some other way.
+PAIRING_WIFI_INTERFACE=""
+
+# Ethernet interface for SSH / LAN / Home Assistant access
 # Examples: eth0, enp0s25, eno1
 ETH_INTERFACE="eth0"
 
 # ===== ACCESS POINT CONFIGURATION =====
-# WiFi network name that cameras will connect to
+# WiFi network name / password cameras connect to. In external mode configure the
+# SAME SSID + WPA2-PSK (AES, 2.4 GHz) on the enterprise AP.
 WIFI_SSID="NETGEAR99"
-
-# WiFi password (WPA2)
 WIFI_PASSWORD="changeme"
 
-# WiFi country code (for regulatory compliance)
+# WiFi country code (regulatory domain; also sent to the cameras)
 WIFI_COUNTRY="US"
 
 # ===== RECORDING CONFIGURATION =====
-# Where to store video recordings
 RECORDINGS_PATH="/home/${USERNAME}/arlo-recordings"
-
-# How long to record after motion (seconds)
 MOTION_TIMEOUT="120"
 
 # ===== CAMERA CONFIGURATION =====
-# Camera serial numbers and friendly names
-# Add more CAMERA_SERIAL_X and CAMERA_NAME_X pairs as needed
+# Camera serial numbers and friendly names. Add CAMERA_SERIAL_N/CAMERA_NAME_N pairs as needed.
 CAMERA_SERIAL_1=""
 CAMERA_NAME_1="Front Door"
 
 CAMERA_SERIAL_2=""
 CAMERA_NAME_2="Back Yard"
 
+# ===== WEB VIEWER =====
+VIEWER_PASSWORD="changeme"
+
+# ===== API / HOME ASSISTANT =====
+# Bearer token required for REST API calls from other hosts (localhost is exempt).
+# Leave empty to generate one.
+API_TOKEN=""
+
+# Optional URL that receives a JSON POST on every motion recording, e.g. a Home
+# Assistant webhook: http://homeassistant.local:8123/api/webhook/arlo_motion
+MOTION_WEBHOOK_URL=""
+
+# Install MediaMTX for on-demand live RTSP (rtsp://<host>:8554/arlo_<SERIAL>)
+LIVE_RTSP_ENABLED="true"
+MEDIAMTX_VERSION="v1.9.3"
+
 # ===== NOTIFICATION CONFIGURATION (Optional) =====
-# Set NTFY_ENABLED="false" to disable push notifications
-NTFY_ENABLED="true"
+NTFY_ENABLED="false"
 NTFY_URL="https://ntfy.sh"
 NTFY_TOPIC="your-arlo-alerts"
 NTFY_PRIORITY="high"
-
-# For thumbnail previews in notifications (requires public URL)
 NTFY_THUMBNAIL_URL=""
 NTFY_CLICK_URL=""
 
 # ===== REMOTE ACCESS CONFIGURATION (Optional) =====
-# For bore tunnel to expose viewer publicly
-# Leave empty to skip bore tunnel setup
+# For bore tunnel to expose viewer publicly. Leave empty to skip.
 BORE_REMOTE_SERVER=""
 BORE_VIEWER_PORT="8084"
 BORE_NTFY_PORT="8085"
 
 # ===== INSTALLATION PATHS =====
-# Where to install arlo-cam-api (usually don't change)
 INSTALL_DIR="/opt/arlo-cam-api"
-
-# System user for running the service
 SERVICE_USER="arlo"

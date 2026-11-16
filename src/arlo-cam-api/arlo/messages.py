@@ -812,3 +812,17 @@ ACTIVITY_ZONE_DELETE = {
         "ID":-1,
         "intrZone":[]
         }
+
+# Arlo Pro 3 / Pro 4 (VMC4040P / VMC4041P) - UNVERIFIED on hardware.
+# Starts from the Pro/Pro 2 set that is known to work and adds the HDR and
+# spotlight keys the same-generation Ultra accepts. If a camera NAKs this set,
+# server.py retries with REGISTER_SET_INITIAL. Tweak per model without code
+# changes via ModelOverrides.<model>.register_set_values in config.yaml.
+import copy as _copy
+REGISTER_SET_INITIAL_PRO4 = _copy.deepcopy(REGISTER_SET_INITIAL)
+REGISTER_SET_INITIAL_PRO4["SetValues"].update({
+        "HdrControl":"auto",
+        "NightModeLightSourceAlert":0,   # don't switch spotlight on for colour night vision
+        "SpotlightModeAlert":0,
+        "SpotlightIntensityAlert":100,
+        })

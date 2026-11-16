@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """GStreamer HLS streaming helper for Arlo cameras.
 
-Usage: gst_hls_stream.py <rtsp_url> <output_dir> <duration>
+Usage: gst_hls_stream.py <rtsp_url> <output_dir> <duration> [udp|tcp]
 
 Uses GStreamer with Python bindings to handle the complex pipeline
 that includes both video (H264) and audio (AAC) streams.
@@ -14,13 +14,27 @@ import os
 import signal
 
 def main():
-    if len(sys.argv) != 4:
-        print(f"Usage: {sys.argv[0]} <rtsp_url> <output_dir> <duration>")
+    if len(sys.argv) not in (4, 5):
+        print(f"Usage: {sys.argv[0]} <rtsp_url> <output_dir> <duration> [udp|tcp]")
         sys.exit(1)
 
     rtsp_url = sys.argv[1]
     output_dir = sys.argv[2]
     duration = int(sys.argv[3])
+    transport = sys.argv[4] if len(sys.argv) == 5 else 'udp'
+
+    if transport == 'tcp':
+        # Pro 3/4: UDP times out after 20 s, and GStreamer's rtspsrc cannot
+        # parse the camera's interleaved TCP framing - let FFmpeg do it.
+        os.makedirs(output_dir, exist_ok=True)
+        os.execvp('ffmpeg', [
+            'ffmpeg', '-hide_banner', '-nostdin', '-loglevel', 'warning',
+            '-rtsp_transport', 'tcp', '-timeout', '10000000', '-i', rtsp_url,
+            '-t', str(duration), '-map', '0:v:0', '-map', '0:a:0?', '-c', 'copy',
+            '-f', 'hls', '-hls_time', '2', '-hls_list_size', '3',
+            '-hls_flags', 'delete_segments',
+            '-hls_segment_filename', f'{output_dir}/segment%05d.ts',
+            f'{output_dir}/stream.m3u8'])
 
     Gst.init(None)
     os.makedirs(output_dir, exist_ok=True)

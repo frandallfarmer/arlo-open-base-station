@@ -106,7 +106,7 @@ app.use(express.json());
 // Proxy for camera status API (Flask runs on port 5000)
 app.get('/api/cameras/status', (req, res) => {
     const http = require('http');
-    http.get('http://localhost:5000/cameras/status', (apiRes) => {
+    http.get('http://127.0.0.1:5000/cameras/status', (apiRes) => {
         let data = '';
         apiRes.on('data', (chunk) => data += chunk);
         apiRes.on('end', () => {
@@ -130,7 +130,7 @@ app.post('/api/camera/:serial/arm', (req, res) => {
     });
 
     const options = {
-        hostname: 'localhost',
+        hostname: '127.0.0.1',
         port: 5000,
         path: `/camera/${serial}/arm`,
         method: 'POST',
@@ -169,7 +169,7 @@ app.post('/api/camera/:serial/disarm', (req, res) => {
     });
 
     const options = {
-        hostname: 'localhost',
+        hostname: '127.0.0.1',
         port: 5000,
         path: `/camera/${serial}/arm`,
         method: 'POST',
@@ -423,7 +423,7 @@ app.post('/api/camera/:serial/stream/start', (req, res) => {
     const serial = req.params.serial;
 
     const options = {
-        hostname: 'localhost',
+        hostname: '127.0.0.1',
         port: 5000,
         path: `/camera/${serial}/stream/start`,
         method: 'POST'
@@ -451,7 +451,7 @@ app.post('/api/camera/:serial/stream/stop', (req, res) => {
     const serial = req.params.serial;
 
     const options = {
-        hostname: 'localhost',
+        hostname: '127.0.0.1',
         port: 5000,
         path: `/camera/${serial}/stream/stop`,
         method: 'POST'
@@ -478,7 +478,7 @@ app.get('/api/camera/:serial/stream/status', (req, res) => {
     const http = require('http');
     const serial = req.params.serial;
 
-    http.get(`http://localhost:5000/camera/${serial}/stream/status`, (apiRes) => {
+    http.get(`http://127.0.0.1:5000/camera/${serial}/stream/status`, (apiRes) => {
         let data = '';
         apiRes.on('data', (chunk) => data += chunk);
         apiRes.on('end', () => {

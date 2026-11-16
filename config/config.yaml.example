@@ -2,6 +2,14 @@ WifiCountryCode: "US"
 MotionRecordingTimeout: 120
 AudioRecordingTimeout: 10
 RecordOnMotionAlert: true
+# Live view + motion recording quality: "1080p" (H.264) or "2k" (HEVC 2560x1440,
+# Arlo Pro 3/4/5S/Ultra only - other models stay 1080p). HEVC needs a player
+# that decodes H.265 (Safari, recent Chrome/Edge with hardware decode, VLC).
+LiveStreamQuality: "1080p"
+# Constant encoder bitrate in kbit/s, applied before every stream (0 = camera's
+# own VBR, which can drop to ~200 kbit/s on a quiet scene). Higher = sharper
+# picture, more Wi-Fi airtime and battery use.
+StreamBitrateKbps: 3000
 RecordOnAudioAlert: false
 RecordingBasePath: "/home/YOUR_USER/arlo-recordings/"
 MotionRecordingWebHookUrl: "http://httpbin.org/anything"
@@ -35,3 +43,10 @@ CameraAliases:
 BatteryWarningEnabled: true
 BatteryWarningLow: 25       # Send warning when battery drops below this percentage (priority: high)
 BatteryWarningCritical: 10  # Send critical warning when battery drops below this percentage (priority: urgent)
+
+# What PIR motion does. "record" (default): the base station records a clip
+# (RecordOnMotionAlert). "wake": no local recording - the camera is kept streaming
+# for MotionWakeSeconds (renewed by more motion) so an NVR reading
+# arlo_<serial>_feed, e.g. Frigate, records live video. See docs/FRIGATE.md.
+MotionAction: "record"
+MotionWakeSeconds: 30

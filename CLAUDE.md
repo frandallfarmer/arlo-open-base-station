@@ -228,6 +228,13 @@ The project uses GStreamer for live streaming because:
 - Arlo cameras require RTCP every 5 seconds
 - GStreamer correctly sends RTCP at 5-second intervals
 
+Exception - Arlo Pro 3/4-class cameras (`rtsp_transport: tcp` in `arlo/models.py`):
+over UDP they end every stream after exactly 20 s ("rtcp timeout", then a Wi-Fi
+re-auth) whatever RTCP is sent, and repeated drops leave the camera unable to serve
+video until its battery is pulled. Over RTSP-interleaved TCP they stream
+indefinitely. GStreamer's rtspsrc cannot parse their interleaved framing
+("Parse error"), so the TCP path (live_publisher.py, gst_hls_stream.py) uses FFmpeg.
+
 Key streaming files:
 - `src/arlo-cam-api/helpers/stream_manager.py`
 - `src/arlo-cam-api/helpers/gst_hls_stream.py`

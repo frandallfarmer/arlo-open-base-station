@@ -1,0 +1,16 @@
+[Unit]
+Description=Arlo always-on feed for NVRs (camera %i) - live when awake, last frame when asleep
+After=mediamtx.service arlo.service
+Wants=mediamtx.service
+
+[Service]
+User=arlo
+Environment=ARLO_FEED_DIR=/var/lib/arlo-feed
+StateDirectory=arlo-feed
+ExecStart=/usr/bin/python3 /opt/arlo-cam-api/helpers/always_on_feed.py %i
+Restart=always
+RestartSec=5
+Nice=5
+
+[Install]
+WantedBy=multi-user.target
